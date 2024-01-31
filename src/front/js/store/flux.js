@@ -1,281 +1,129 @@
 const getState = ({ getStore, getActions, setStore }) => {
-    return {
-        store: {
-            message: null,
-            token: null,
-            user: null,
-            logged: false
-        },
-        actions: {
-            signup: async (dataEmail, dataPassword) => {
-                try {
-                    const response = await fetch(process.env.BACKEND_URL + "/api/signup", {
-                        method: 'POST',
-                        headers: {
-                            'Accept': 'application/json',
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            email: dataEmail,
-                            password: dataPassword,
-                        })
-                    });
-                    console.log(response);
-                    if (response.ok) {
-                        const data = await response.json();
-                        setStore({
-                            user: {
-                                email: dataEmail,
-                                password: dataPassword,
-                                id: data.user.id
-                            },
-                            logged: true
-                        });
-                        getActions().login(dataEmail, dataPassword);
-                        return true;
-                    } else {
-                        // Check for specific error messages
-                        const errorData = await response.json();
-                        if (errorData.message) {
-                            console.error(`Signup error: ${errorData.message}`);
-                        } else {
-                            console.error("An error occurred during user creation");
-                        }
-                        return false;
-                    }
-                } catch (error) {
-                    console.error("An error occurred during user creation", error);
-                    return false;
-                }
-            },
-            login: async (dataEmail, dataPassword) => {
-                try {
-                    const response = await fetch(process.env.BACKEND_URL + "/api/login", {
-                        method: 'POST',
-                        headers: {
-                            'Accept': 'application/json',
-                            'Content-Type': 'application/json',
-                            "Access-Control-Allow-Origin": "*",
-                            "Access-Control-Allow-Methods": "*"
-                        },
-                        body: JSON.stringify({
-                            email: dataEmail,
-                            password: dataPassword
-                        })
-                    });
-                    console.log(response);
-                    if (response.ok) {
-                        const data = await response.json();
-                        setStore({
-                            user: data.user,
-                            token: data.token,
-                            logged: true
-                        });
-                        sessionStorage.setItem("token", data.token);
-                        sessionStorage.setItem("userID", data.user.id);
-                        window.location = '/private';
-                        return true;
-                    } else {
-                        console.error("An error occurred during user login");
-                        return false;
-                    }
-                } catch (error) {
-                    console.error("An error occurred during user login", error);
-                    return false;
-                }
-            },
-            verifyAuthToken: async () => {
-                const token = sessionStorage.getItem("token");
-				console.log(token);
-                if (!token) {
-                    setStore({ logged: false });
-                    window.location = '/login';
-                    return false;
-                }
-
-                try {
-                    let response = await fetch(process.env.BACKEND_URL + "/api/private", {
-                        method: 'GET',
-                        headers: {
-                            'Accept': 'application/json',
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`,
-                            "Access-Control-Allow-Origin": "*",
-                            "Access-Control-Allow-Methods": "*"
-                        }
-                    });
-
-                    if (response.ok) {
-                        const userData = await response.json();
-                        setStore({
-                            user: userData.response.user,
-                            token: token,
-                            logged: true
-                        });
-                    } else {
-                        sessionStorage.removeItem("token");
-                        setStore({ logged: false });
-						window.location = '/login';
-                    }
-                } catch (error) {
-                    console.error("Token validation failed", error);
-                    sessionStorage.removeItem("token");
-                    setStore({ logged: false });
-					window.location = '/login';
-                }
-            },
-            logout: () => {
-                setStore({
-                    user: null,
-                    token: null,
-                    logged: false,
-                });
-                sessionStorage.removeItem("token");
-                sessionStorage.removeItem("userID");
-            }
-        }
-    };
+	return {
+		store: {
+			message: null,			
+			token: null,
+			user: null
+		},
+		actions: {
+			// Use getActions to call a function within a fuction
+			getMessage: async () => {
+				try{
+					// fetching data from the backend
+					const resp = await fetch(process.env.BACKEND_URL + "/api/hello")
+					const data = await resp.json()
+					setStore({ message: data.message })
+					// don't forget to return something, that is how the async resolves
+					return data;
+				}catch(error){
+					console.log("Error loading message from backend", error)
+				}
+			},			
+			signUp: async (form, navigate) => {
+				const url = "https://humble-doodle-r4gvggp7vx49f5rw7-3001.app.github.dev/api/signup";
+				await fetch(url, {
+					method: "Post",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({						
+						"username": form.email,
+                      	"password": form.password,
+						"is_active": true
+					})					
+				})
+				.then(async resp => {
+					console.log(resp.ok); // will be true if the response is successfull
+					console.log(resp.status); // the status code = 200 or code = 400 etc.
+					if(!resp.ok) {
+						alert("user already exists");
+						return false;
+					}
+					await resp.json(); // (returns promise) will try to parse the result as json as return a promise that you can .then for results
+					navigate('/login');														
+				})
+				.catch(error => {
+					//error handling
+					console.log(error);
+				})
+			},
+			login: (form, navigate) => {
+				const store = getStore();
+				const url = "https://humble-doodle-r4gvggp7vx49f5rw7-3001.app.github.dev/api/token";
+				fetch(url, {
+					method: "Post",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({						
+						"username": form.email,
+                      	"password": form.password
+					})					
+				})
+				.then(async resp => {
+					console.log(resp.ok); // will be true if the response is successfull
+					console.log(resp.status); // the status code = 200 or code = 400 etc.
+					if(!resp.ok){
+						alert("wrong username or password");
+						return false;						
+					}
+					//console.log(resp.text()); // will try return the exact result as string
+					const data = await resp.json();
+					sessionStorage.setItem("token", data.token);
+					setStore({token: data.token});
+					
+					console.log(store.token);
+					navigate('/private');
+				})				
+				.catch(error => {
+					//error handling
+					console.log(error);
+				})
+			},
+			authenticateUser: (navigate) => {
+				const store = getStore();
+				console.log(store.token);
+				const url = "https://humble-doodle-r4gvggp7vx49f5rw7-3001.app.github.dev/api/private"
+				fetch(url, {
+					method: "GET",
+					headers: {
+						"Authorization": "Bearer " + store.token
+					}
+				})
+				.then(resp => {
+					console.log(resp.ok); // will be true if the response is successfull
+					console.log(resp.status); // the status code = 200 or code = 400 etc.
+					if(!resp.ok){
+						navigate("/login");
+						alert("Please login to continue");
+												
+					}
+					
+					//console.log(resp.text()); // will try return the exact result as string
+					return resp.json();
+				})
+				.then(data => {
+					setStore({user: data});
+					
+				})
+				.catch(error => {
+					//error handling
+					console.log(error);
+				})
+			},
+			tokenFromStore: () => {
+				let store = getStore();
+				const token = sessionStorage.getItem("token");
+				if (token && token!= null && token!=undefined) setStore({token: token});
+			},
+			logout: (navigate) => {			
+				setStore({user:null});
+				sessionStorage.removeItem("token");
+				setStore({token: null});
+				navigate("/");
+			}
+		}
+	};
 };
 
 export default getState;
-// const getState = ({ getStore, getActions, setStore }) => {
-// 	return {
-// 		store: {
-// 			message: null,
-// 			token: null,
-// 			user: null,
-// 			logged: false
-// 		},
-// 		actions: {
-// 			// Use getActions to call a function within a fuction
-// 			signup: async (dataEmail, dataPassword) => {
-//                 try {
-//                     const response = await fetch(process.env.BACKEND_URL + "/api/signup", {
-//                         method: 'POST',
-//                         headers: {
-//                             'Accept': 'application/json',
-//                             'Content-Type': 'application/json'
-//                         },
-//                         body: JSON.stringify({
-//                             email: dataEmail,
-//                             password: dataPassword,
-//                         })
-//                     });
-//                     console.log(response);
-//                     if (response.ok) {
-//                         const data = await response.json();
-//                         setStore({
-//                             user: {
-//                                 email: dataEmail,
-//                                 password: dataPassword,
-//                                 id: data.user.id
-//                             },
-//                             logged: true
-//                         });
-//                         getActions().login(dataEmail, dataPassword);
-//                         return true;
-//                     } else {
-//                         // Check for specific error messages
-//                         const errorData = await response.json();
-//                         if (errorData.message) {
-//                             console.error(`Signup error: ${errorData.message}`);
-//                         } else {
-//                             console.error("An error occurred during user creation");
-//                         }
-//                         return false;
-//                     }
-//                 } catch (error) {
-//                     console.error("An error occurred during user creation", error);
-//                     return false;
-//                 }
-//             },
-// 			login: async (dataEmail, dataPassword) => {
-//                 try {
-//                     const response = await fetch(process.env.BACKEND_URL + "/api/login", {
-//                         method: 'POST',
-//                         headers: {
-//                             'Accept': 'application/json',
-//                             'Content-Type': 'application/json',
-//                             "Access-Control-Allow-Origin": "*",
-//                             "Access-Control-Allow-Methods": "*"
-//                         },
-//                         body: JSON.stringify({
-//                             email: dataEmail,
-//                             password: dataPassword
-//                         })
-//                     });
-//                     console.log(response);
-//                     if (response.ok) {
-//                         const data = await response.json();
-//                         setStore({
-//                             user: data.user,
-//                             token: data.token,
-//                             logged: true
-//                         });
-//                         sessionStorage.setItem("token", data.token);
-//                         sessionStorage.setItem("userID", data.user.id);
-//                         window.location = '/private';
-//                         return true;
-//                     } else {
-//                         console.error("An error occurred during user login");
-//                         return false;
-//                     }
-//                 } catch (error) {
-//                     console.error("An error occurred during user login", error);
-//                     return false;
-//                 }
-//             },
-//             verifyAuthToken: async () => {
-//                 const token = sessionStorage.getItem("token");
-// 				console.log(token);
-//                 if (!token) {
-//                     setStore({ logged: false });
-//                     window.location = '/login';
-//                     return false;
-//                 }
-
-//                 try {
-//                     let response = await fetch(process.env.BACKEND_URL + "/api/private", {
-//                         method: 'GET',
-//                         headers: {
-//                             'Accept': 'application/json',
-//                             'Content-Type': 'application/json',
-//                             'Authorization': `Bearer ${token}`,
-//                             "Access-Control-Allow-Origin": "*",
-//                             "Access-Control-Allow-Methods": "*"
-//                         }
-//                     });
-
-//                     if (response.ok) {
-//                         const userData = await response.json();
-//                         setStore({
-//                             user: userData.response.user,
-//                             token: token,
-//                             logged: true
-//                         });
-//                     } else {
-//                         sessionStorage.removeItem("token");
-//                         setStore({ logged: false });
-// 						window.location = '/login';
-//                     }
-//                 } catch (error) {
-//                     console.error("Token validation failed", error);
-//                     sessionStorage.removeItem("token");
-//                     setStore({ logged: false });
-// 					window.location = '/login';
-//                 }
-//             },
-//             logout: () => {
-//                 setStore({
-//                     user: null,
-//                     token: null,
-//                     logged: false,
-//                 });
-//                 sessionStorage.removeItem("token");
-//                 sessionStorage.removeItem("userID");
-//             }
-//         }
-//     };
-// };
-
-// export default getState;

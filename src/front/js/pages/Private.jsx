@@ -1,31 +1,34 @@
-import React, { useContext, useEffect } from "react";
+import React, {useEffect, useContext} from "react";
 import { Context } from "../store/appContext";
+import { useNavigate } from "react-router-dom";
+
 
 const Private = () => {
-    const { store, actions } = useContext(Context);
+    const {store, actions} = useContext(Context);
+    const navigate = useNavigate();
 
     useEffect(() => {
-        if (!store.logged) {
-            actions.verifyAuthToken();
+        function authenticate() {
+            actions.authenticateUser(navigate);
         }
-    }, [store.logged]);
+        setTimeout(() => {
+            authenticate() }, 500)        
+    }, [])
 
     return (
-        <div className="text-center">
-            {store.logged ? (
-                <div>
-                    <h1>Welcome, {store.user.email}!</h1>
-                    <p>This is a protected route.</p>
+        <div className="container text-center">
+            <h1>User Informtation</h1>
+            {store.user!= null ?
+                <div >
+                    <h2>Username: {store.user.username}</h2>
+                    <h2>Id: {store.user.id}</h2>
                 </div>
-            ) : (
-                <div>
-                    <h1>Unauthorized</h1>
-                    <p>You need to be logged in to access this page.</p>
-                </div>
-            )}
+                :
+                ''
+            }
         </div>
     );
-};
+}
 
 export default Private;
 
